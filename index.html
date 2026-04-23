@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>31-Day Exam Mastery Plan — Kopaline University</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- HERO SECTION -->
+
+    <!-- ═══════════════════════════════════════════
+         AI STUDY TOOLS SECTION
+         ═══════════════════════════════════════════ -->
+    <div class="ai-section">
+      <div class="ai-section-header">
+        <div class="ai-section-title">
+          <span class="ai-spark">✦</span>
+          <h2>AI Study Tools</h2>
+          <span class="ai-badge">Powered by Groq</span>
+        </div>
+        <p class="ai-section-sub">
+          Three intelligent tools to accelerate your exam prep
+        </p>
+      </div>
+
+      <!-- API KEY BAR -->
+      <!-- 
+        SECURITY NOTE: Your Groq API key is stored only in memory (a JS variable).
+        It is never saved to localStorage, sessionStorage, cookies, or any server.
+        For production use, route requests through your own backend proxy so the
+        key never touches the browser at all.
+      -->
+      <div class="ai-key-bar" id="keyBar">
+        <div class="key-bar-inner">
+          <span class="key-icon">🔑</span>
+          <div class="key-input-wrap">
+            <input
+              type="password"
+              id="apiKeyInput"
+              placeholder="Paste your Groq API key (gsk_…)"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <button class="key-connect-btn" onclick="saveApiKey()">
+            Connect
+          </button>
+          <span class="key-status" id="keyStatus"></span>
+        </div>
+        <p class="key-note">
+          🔒 Stored in memory only — never saved or sent anywhere except
+          Anthropic's API
+        </p>
+      </div>
+
+      <!-- TOOL TABS -->
+      <div class="ai-container">
+        <div class="ai-tool-tabs">
+          <button class="atab active" onclick="setAITab(0)" id="atab0">
+            <span class="atab-icon">🎓</span> AI Tutor
+          </button>
+          <button class="atab" onclick="setAITab(1)" id="atab1">
+            <span class="atab-icon">🃏</span> Flashcard Extractor
+          </button>
+          <button class="atab" onclick="setAITab(2)" id="atab2">
+            <span class="atab-icon">📅</span> Study Scheduler
+          </button>
+        </div>
+
+        <!-- ── TOOL PANEL 0: AI TUTOR ── -->
+        <div class="ai-tool-panel" id="aiPanel0">
+          <div class="tool-intro">
+            <h3>Expert Exam Tutor</h3>
+            <p>
+              Enter any topic from your syllabus and get an instant breakdown:
+              core concept summary, a memory analogy, and active-recall
+              questions.
+            </p>
+          </div>
+          <div class="tool-input-row">
+            <input
+              type="text"
+              class="ai-text-input"
+              id="tutorInput"
+              placeholder="e.g. 'Marginal Cost of Capital' or 'Double-entry bookkeeping'"
+              onkeydown="if (event.key === 'Enter') runTutor();"
+            />
+            <button class="ai-run-btn" onclick="runTutor()" id="tutorBtn">
+              <span>Explain</span> →
+            </button>
+          </div>
+          <div class="ai-output-wrap" id="tutorOutput"></div>
+        </div>
+
+        <!-- ── TOOL PANEL 1: FLASHCARD EXTRACTOR ── -->
+        <div class="ai-tool-panel hidden" id="aiPanel1">
+          <div class="tool-intro">
+            <h3>Flashcard Extractor</h3>
+            <p>
+              Paste any block of study text — lecture notes, a chapter summary,
+              a definition list — and the AI will pull out the 5 most important
+              Q&amp;A pairs as interactive flashcards.
+            </p>
+          </div>
+          <textarea
+            class="ai-textarea"
+            id="flashcardInput"
+            placeholder="Paste your study notes here…&#10;&#10;e.g. 'The cash conversion cycle measures how long a firm takes to convert resource inputs into cash flows. It equals Days Inventory Outstanding + Days Sales Outstanding − Days Payable Outstanding…'"
+            rows="7"
+          ></textarea>
+          <button
+            class="ai-run-btn"
+            onclick="runFlashcards()"
+            id="flashcardBtn"
+          >
+            <span>Extract Flashcards</span> →
+          </button>
+          <div class="ai-output-wrap" id="flashcardOutput"></div>
+        </div>
+
+        <!-- ── TOOL PANEL 2: STUDY SCHEDULER ── -->
+        <div class="ai-tool-panel hidden" id="aiPanel2">
+          <div class="tool-intro">
+            <h3>Spaced Repetition Scheduler</h3>
+            <p>
+              Enter your exam subjects (comma-separated). The AI will build a
+              31-day day-by-day plan using spaced repetition logic,
+              front-loading the hardest topics in the first two weeks.
+            </p>
+          </div>
+          <div class="schedule-inputs">
+            <input
+              type="text"
+              class="ai-text-input"
+              id="scheduleSubjects"
+              placeholder="e.g. Financial Accounting, Corporate Finance, Management Accounting, Auditing, Tax, Economics"
+            />
+            <div class="schedule-meta-row">
+              <div class="meta-item">
+                <label>Days until exam</label>
+                <input
+                  type="number"
+                  class="meta-num"
+                  id="scheduleDays"
+                  value="31"
+                  min="7"
+                  max="60"
+                />
+              </div>
+              <div class="meta-item">
+                <label>Hours per day</label>
+                <input
+                  type="number"
+                  class="meta-num"
+                  id="scheduleHrs"
+                  value="4"
+                  min="1"
+                  max="12"
+                />
+              </div>
+            </div>
+          </div>
+          <button class="ai-run-btn" onclick="runSchedule()" id="scheduleBtn">
+            <span>Generate Schedule</span> →
+          </button>
+          <div class="ai-output-wrap" id="scheduleOutput"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- External Scripts -->
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
