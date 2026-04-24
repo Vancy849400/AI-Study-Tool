@@ -270,8 +270,11 @@ function clearAITutor() {
   document.getElementById("aiResponse").innerHTML  = "";
 }
 
-// Allow Enter key to submit the question
-document.addEventListener("DOMContentLoaded", () => {
+// Allow Enter key to submit the question.
+// Uses the same readyState guard as init() because DOMContentLoaded has
+// already fired by the time a <script> at the bottom of <body> runs —
+// a bare addEventListener("DOMContentLoaded", …) would never execute.
+function attachEnterKey() {
   const input = document.getElementById("aiQuestion");
   if (input) {
     input.addEventListener("keydown", (e) => {
@@ -281,4 +284,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", attachEnterKey);
+} else {
+  attachEnterKey();
+}

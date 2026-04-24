@@ -466,13 +466,12 @@ body {
 
 .qa-a {
   display: none;
-  padding: 0 18px 14px;
+  padding: 14px 18px;
   font-size: 13.5px;
   color: var(--muted);
   line-height: 1.7;
   background: var(--bg3);
   border-top: 1px solid var(--border);
-  padding-top: 14px;
 }
 
 .qa-a.open {
