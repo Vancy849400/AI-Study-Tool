@@ -1,5 +1,5 @@
 let activePhase = 0;
-let activeCourse = "AW";
+let activeCourse = "FA";
 
 /**
  * Render phase tabs — the top navigation buttons for switching between phases
