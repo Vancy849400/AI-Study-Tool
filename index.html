@@ -12,165 +12,86 @@
   </head>
   <body>
     <!-- HERO SECTION -->
+    <div class="hero">
+      <h1>31-Day <span>Exam Mastery</span> Plan</h1>
+      <p>
+        Kopaline University &nbsp;·&nbsp; BSc Accounting &amp; Finance
+        &nbsp;·&nbsp; 6 Core Courses
+      </p>
+    </div>
+
+    <!-- STATS CARDS -->
+    <div class="stats">
+      <div class="stat-card">
+        <span class="num">31</span><span class="lbl">Days</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">6</span><span class="lbl">Courses</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">120</span><span class="lbl">Study Hrs</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">5</span><span class="lbl">Phases</span>
+      </div>
+    </div>
+
 
     <!-- ═══════════════════════════════════════════
-         AI STUDY TOOLS SECTION
+         AI TUTOR BLOCK — paste between stats & container
          ═══════════════════════════════════════════ -->
-    <div class="ai-section">
-      <div class="ai-section-header">
-        <div class="ai-section-title">
-          <span class="ai-spark">✦</span>
-          <h2>AI Study Tools</h2>
-          <span class="ai-badge">Powered by Groq</span>
+    <div class="ai-tutor-wrap">
+      <div class="ai-tutor-card">
+        <div class="ai-tutor-header">
+          <span class="ai-tutor-icon">🎓</span>
+          <div>
+            <h2 class="ai-tutor-title">Ask Your AI Tutor</h2>
+            <p class="ai-tutor-sub">Powered by Groq &nbsp;·&nbsp; Kopaline University Study Assistant</p>
+          </div>
         </div>
-        <p class="ai-section-sub">
-          Three intelligent tools to accelerate your exam prep
-        </p>
+        <div class="ai-input-row">
+          <input
+            type="text"
+            id="aiQuestion"
+            class="ai-question-input"
+            placeholder="e.g. Explain double-entry bookkeeping, or What is the capital asset pricing model?"
+            autocomplete="off"
+          />
+          <button id="aiAskBtn" class="ai-ask-btn" onclick="askAITutor()">Ask →</button>
+        </div>
+        <div class="ai-chips">
+          <button class="ai-chip-btn" onclick="document.getElementById('aiQuestion').value=this.dataset.q;askAITutor()" data-q="What is the difference between gross profit and net profit?">Gross vs Net Profit</button>
+          <button class="ai-chip-btn" onclick="document.getElementById('aiQuestion').value=this.dataset.q;askAITutor()" data-q="Explain the concept of materiality in auditing">Materiality in Auditing</button>
+          <button class="ai-chip-btn" onclick="document.getElementById('aiQuestion').value=this.dataset.q;askAITutor()" data-q="What is the CAPM formula and when do I use it?">CAPM Formula</button>
+          <button class="ai-chip-btn" onclick="document.getElementById('aiQuestion').value=this.dataset.q;askAITutor()" data-q="How does marginal costing differ from absorption costing?">Marginal vs Absorption</button>
+        </div>
+        <!-- AI response renders here -->
+        <div id="aiResponse" class="ai-response-box"></div>
       </div>
+    </div>
 
-      <!-- API KEY BAR -->
-      <!-- 
-        SECURITY NOTE: Your Groq API key is stored only in memory (a JS variable).
-        It is never saved to localStorage, sessionStorage, cookies, or any server.
-        For production use, route requests through your own backend proxy so the
-        key never touches the browser at all.
-      -->
-      <div class="ai-key-bar" id="keyBar">
-        <div class="key-bar-inner">
-          <span class="key-icon">🔑</span>
-          <div class="key-input-wrap">
-            <input
-              type="password"
-              id="apiKeyInput"
-              placeholder="Paste your Groq API key (gsk_…)"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-          <button class="key-connect-btn" onclick="saveApiKey()">
-            Connect
-          </button>
-          <span class="key-status" id="keyStatus"></span>
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+      <!-- Course Tabs -->
+      <div class="course-scroller" id="courseTabs"></div>
+
+      <!-- Main Course Content -->
+      <div id="courseContent"></div>
+      
+      <!-- Phase Tabs -->
+      <div class="phase-scroller" id="phaseTabs"></div>
+      <!-- Progress Bar -->
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span id="progressLabel">Phase progress</span>
+          <span id="progressPct">20%</span>
         </div>
-        <p class="key-note">
-          🔒 Stored in memory only — never saved or sent anywhere except
-          Anthropic's API
-        </p>
-      </div>
-
-      <!-- TOOL TABS -->
-      <div class="ai-container">
-        <div class="ai-tool-tabs">
-          <button class="atab active" onclick="setAITab(0)" id="atab0">
-            <span class="atab-icon">🎓</span> AI Tutor
-          </button>
-          <button class="atab" onclick="setAITab(1)" id="atab1">
-            <span class="atab-icon">🃏</span> Flashcard Extractor
-          </button>
-          <button class="atab" onclick="setAITab(2)" id="atab2">
-            <span class="atab-icon">📅</span> Study Scheduler
-          </button>
-        </div>
-
-        <!-- ── TOOL PANEL 0: AI TUTOR ── -->
-        <div class="ai-tool-panel" id="aiPanel0">
-          <div class="tool-intro">
-            <h3>Expert Exam Tutor</h3>
-            <p>
-              Enter any topic from your syllabus and get an instant breakdown:
-              core concept summary, a memory analogy, and active-recall
-              questions.
-            </p>
-          </div>
-          <div class="tool-input-row">
-            <input
-              type="text"
-              class="ai-text-input"
-              id="tutorInput"
-              placeholder="e.g. 'Marginal Cost of Capital' or 'Double-entry bookkeeping'"
-              onkeydown="if (event.key === 'Enter') runTutor();"
-            />
-            <button class="ai-run-btn" onclick="runTutor()" id="tutorBtn">
-              <span>Explain</span> →
-            </button>
-          </div>
-          <div class="ai-output-wrap" id="tutorOutput"></div>
-        </div>
-
-        <!-- ── TOOL PANEL 1: FLASHCARD EXTRACTOR ── -->
-        <div class="ai-tool-panel hidden" id="aiPanel1">
-          <div class="tool-intro">
-            <h3>Flashcard Extractor</h3>
-            <p>
-              Paste any block of study text — lecture notes, a chapter summary,
-              a definition list — and the AI will pull out the 5 most important
-              Q&amp;A pairs as interactive flashcards.
-            </p>
-          </div>
-          <textarea
-            class="ai-textarea"
-            id="flashcardInput"
-            placeholder="Paste your study notes here…&#10;&#10;e.g. 'The cash conversion cycle measures how long a firm takes to convert resource inputs into cash flows. It equals Days Inventory Outstanding + Days Sales Outstanding − Days Payable Outstanding…'"
-            rows="7"
-          ></textarea>
-          <button
-            class="ai-run-btn"
-            onclick="runFlashcards()"
-            id="flashcardBtn"
-          >
-            <span>Extract Flashcards</span> →
-          </button>
-          <div class="ai-output-wrap" id="flashcardOutput"></div>
-        </div>
-
-        <!-- ── TOOL PANEL 2: STUDY SCHEDULER ── -->
-        <div class="ai-tool-panel hidden" id="aiPanel2">
-          <div class="tool-intro">
-            <h3>Spaced Repetition Scheduler</h3>
-            <p>
-              Enter your exam subjects (comma-separated). The AI will build a
-              31-day day-by-day plan using spaced repetition logic,
-              front-loading the hardest topics in the first two weeks.
-            </p>
-          </div>
-          <div class="schedule-inputs">
-            <input
-              type="text"
-              class="ai-text-input"
-              id="scheduleSubjects"
-              placeholder="e.g. Financial Accounting, Corporate Finance, Management Accounting, Auditing, Tax, Economics"
-            />
-            <div class="schedule-meta-row">
-              <div class="meta-item">
-                <label>Days until exam</label>
-                <input
-                  type="number"
-                  class="meta-num"
-                  id="scheduleDays"
-                  value="31"
-                  min="7"
-                  max="60"
-                />
-              </div>
-              <div class="meta-item">
-                <label>Hours per day</label>
-                <input
-                  type="number"
-                  class="meta-num"
-                  id="scheduleHrs"
-                  value="4"
-                  min="1"
-                  max="12"
-                />
-              </div>
-            </div>
-          </div>
-          <button class="ai-run-btn" onclick="runSchedule()" id="scheduleBtn">
-            <span>Generate Schedule</span> →
-          </button>
-          <div class="ai-output-wrap" id="scheduleOutput"></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressBar" style="width: 20%"></div>
         </div>
       </div>
+      <!-- Phase Banner -->
+      <div class="phase-banner" id="phaseBanner"></div>
     </div>
 
     <!-- External Scripts -->

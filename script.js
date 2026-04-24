@@ -1,7 +1,3 @@
-/* ═══════════════════════════════════════════════════════════
-   EXISTING STUDY PLAN LOGIC (unchanged)
-   ═══════════════════════════════════════════════════════════ */
-
 let activePhase = 0;
 let activeCourse = "AW";
 
@@ -190,339 +186,99 @@ if (document.readyState === "loading") {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   AI STUDY TOOLS — New Section Below
-   ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   AI TUTOR — Cloudflare Worker proxy integration
+   ═══════════════════════════════════════════════════════════════
+   Replace WORKER_URL with your deployed Cloudflare Worker URL.
+   The API key never touches the browser — the Worker holds it.
+   ═══════════════════════════════════════════════════════════════ */
 
-   SECURITY MODEL:
-   - API key is held in a plain JS variable (in-memory only).
-   - It is never written to localStorage, sessionStorage, or cookies.
-   - All requests go directly from your browser to api.anthropic.com
-     over HTTPS. No third-party sees the key.
-   - For production / shared deployments, replace callAnthropicAPI()
-     with a call to your own backend proxy endpoint so the key
-     stays server-side entirely.
-   ═══════════════════════════════════════════════════════════ */
-
-/** In-memory store for the API key — never persisted anywhere */
-let _apiKey = "";
-
-/** Active AI tool tab index */
-let activeAITab = 0;
-
-/* ── API Key Management ── */
-
-function saveApiKey() {
-  const raw = document.getElementById("apiKeyInput").value.trim();
-  const status = document.getElementById("keyStatus");
-
-  if (!raw.startsWith("gsk_")) {
-    status.textContent = "⚠ Groq keys start with gsk_";
-    status.className = "key-status error";
-    return;
-  }
-
-  _apiKey = raw;
-  document.getElementById("apiKeyInput").value = ""; // clear field immediately
-  status.textContent = "✓ Connected";
-  status.className = "key-status ok";
-}
-
-/* ── Core API Utility ── */
+const WORKER_URL = "https://study-proxy.vancybukama.workers.dev"; // ← CHANGE THIS
 
 /**
- * Sends a request to the Groq API (OpenAI-compatible).
- * @param {string} systemPrompt  - The system instruction for the AI
- * @param {string} userMessage   - The user message / prompt
- * @param {number} maxTokens     - Max tokens in the response (default 1200)
- * @returns {Promise<string>}    - The text content of the AI response
+ * Send the user's question to the Cloudflare Worker proxy,
+ * which forwards it to Groq with the hidden API key.
+ * Updates #aiResponse with the formatted answer.
  */
-async function callAnthropicAPI(systemPrompt, userMessage, maxTokens = 1200) {
-  if (!_apiKey) {
-    throw new Error("No API key — please enter your Groq API key above and click Connect.");
-  }
+async function askAITutor() {
+  const input    = document.getElementById("aiQuestion");
+  const outputEl = document.getElementById("aiResponse");
+  const btn      = document.getElementById("aiAskBtn");
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${_apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userMessage  },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-}
-
-/* ── AI Tool Tab Switching ── */
-
-function setAITab(i) {
-  activeAITab = i;
-  document.querySelectorAll(".ai-tool-panel").forEach((p, idx) => {
-    p.classList.toggle("hidden", idx !== i);
-  });
-  document.querySelectorAll(".atab").forEach((t, idx) => {
-    t.classList.toggle("active", idx === i);
-  });
-}
-
-/* ── Helper: Loading / Error / Clear ── */
-
-function setLoading(outputId, btnId, isLoading, label = "Running…") {
-  const btn = document.getElementById(btnId);
-  if (isLoading) {
-    btn.disabled = true;
-    btn.innerHTML = `<span class="ai-spinner"></span> ${label}`;
-  } else {
-    btn.disabled = false;
-    btn.innerHTML = btn.dataset.label || btn.innerHTML;
-  }
-}
-
-function showError(outputId, message) {
-  document.getElementById(outputId).innerHTML = `
-    <div class="ai-error">⚠ ${message}</div>`;
-}
-
-/* ══════════════════════════════════════════════
-   TOOL 1 — AI TUTOR
-   Takes a topic → returns Core Concept, Analogy, Active Recall Qs
-   ══════════════════════════════════════════════ */
-
-async function runTutor() {
-  const topic = document.getElementById("tutorInput").value.trim();
-  if (!topic) return;
-
-  const outputEl = document.getElementById("tutorOutput");
-  const btn = document.getElementById("tutorBtn");
-
-  // Store original label
-  btn.dataset.label = "<span>Explain</span> →";
-  btn.disabled = true;
-  btn.innerHTML = `<span class="ai-spinner"></span> Thinking…`;
-  outputEl.innerHTML = "";
-
-  const systemPrompt = `You are an Expert Exam Tutor helping a BSc Accounting & Finance student master their curriculum in 31 days.
-
-When the user submits a topic, you MUST respond with EXACTLY this HTML structure — no preamble, no markdown, just the HTML below:
-
-<div class="tutor-result">
-  <div class="tutor-block core">
-    <h3>📚 Core Concept</h3>
-    <p>[Exactly 3 clear, exam-focused sentences explaining the topic. Use plain language a smart 16-year-old could follow.]</p>
-  </div>
-  <div class="tutor-block analogy">
-    <h3>💡 Memory Analogy</h3>
-    <p>[One vivid, memorable real-world analogy that makes the concept stick. Start with "Think of it like…"]</p>
-  </div>
-  <div class="tutor-block recall">
-    <h3>🎯 Active Recall Questions</h3>
-    <ul>
-      <li>[Question 1 — exam-style, requires understanding not just recall]</li>
-      <li>[Question 2 — application or calculation question]</li>
-    </ul>
-  </div>
-  <div class="tutor-block tip">
-    <h3>⚡ Exam Tip</h3>
-    <p>[One specific, actionable tip for scoring marks on this topic in an exam. Be concrete.]</p>
-  </div>
-</div>
-
-Tone: Encouraging, concise, expert. Replace all bracketed placeholders with real content.`;
-
-  try {
-    const html = await callAnthropicAPI(systemPrompt, `Topic: ${topic}`);
-    outputEl.innerHTML = html;
-  } catch (e) {
-    showError("tutorOutput", e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = "<span>Explain</span> →";
-  }
-}
-
-/* ══════════════════════════════════════════════
-   TOOL 2 — FLASHCARD EXTRACTOR
-   Takes study text → extracts 5 Q&A pairs → renders as flippable cards
-   ══════════════════════════════════════════════ */
-
-async function runFlashcards() {
-  const text = document.getElementById("flashcardInput").value.trim();
-  if (!text) return;
-
-  const outputEl = document.getElementById("flashcardOutput");
-  const btn = document.getElementById("flashcardBtn");
-
-  btn.dataset.label = "<span>Extract Flashcards</span> →";
-  btn.disabled = true;
-  btn.innerHTML = `<span class="ai-spinner"></span> Extracting…`;
-  outputEl.innerHTML = "";
-
-  const systemPrompt = `You are a flashcard extraction engine for exam prep.
-
-The user will provide a block of study text. Extract the 5 most important, exam-testable facts.
-
-Return ONLY a valid JSON array — no markdown fences, no explanation, no extra text. The array must follow this exact schema:
-
-[
-  { "question": "...", "answer": "..." },
-  { "question": "...", "answer": "..." },
-  { "question": "...", "answer": "..." },
-  { "question": "...", "answer": "..." },
-  { "question": "...", "answer": "..." }
-]
-
-Rules:
-- Questions must be specific, exam-style (not vague)
-- Answers must be concise but complete (1-3 sentences max)
-- Cover different aspects of the text — do not cluster on one sub-topic
-- Do not include the word "answer" in the question`;
-
-  try {
-    const raw = await callAnthropicAPI(systemPrompt, text, 800);
-
-    // Safely parse the JSON — strip any accidental markdown fences
-    const clean = raw.replace(/```json|```/g, "").trim();
-    const cards = JSON.parse(clean);
-
-    if (!Array.isArray(cards) || cards.length === 0) {
-      throw new Error("Unexpected response format. Please try again.");
-    }
-
-    // Render flippable flashcards
-    outputEl.innerHTML = `
-      <p class="fc-hint">Click a card to reveal the answer</p>
-      <div class="flashcard-grid">
-        ${cards.map((c, i) => `
-          <div class="flashcard" onclick="flipCard(this)" id="fc${i}">
-            <div class="fc-inner">
-              <div class="fc-front">
-                <div class="fc-num">Q${i + 1}</div>
-                <p>${c.question}</p>
-              </div>
-              <div class="fc-back">
-                <div class="fc-num">A${i + 1}</div>
-                <p>${c.answer}</p>
-              </div>
-            </div>
-          </div>`).join("")}
-      </div>`;
-
-  } catch (e) {
-    showError("flashcardOutput", e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = "<span>Extract Flashcards</span> →";
-  }
-}
-
-/** Flip a flashcard */
-function flipCard(el) {
-  el.classList.toggle("flipped");
-}
-
-/* ══════════════════════════════════════════════
-   TOOL 3 — STUDY SCHEDULER (Spaced Repetition)
-   Takes subjects + days → generates day-by-day schedule
-   ══════════════════════════════════════════════ */
-
-async function runSchedule() {
-  const subjects = document.getElementById("scheduleSubjects").value.trim();
-  const days = parseInt(document.getElementById("scheduleDays").value) || 31;
-  const hrs = parseInt(document.getElementById("scheduleHrs").value) || 4;
-
-  if (!subjects) {
-    showError("scheduleOutput", "Please enter at least one subject.");
+  const question = input.value.trim();
+  if (!question) {
+    input.focus();
     return;
   }
 
-  const outputEl = document.getElementById("scheduleOutput");
-  const btn = document.getElementById("scheduleBtn");
-
-  btn.dataset.label = "<span>Generate Schedule</span> →";
-  btn.disabled = true;
-  btn.innerHTML = `<span class="ai-spinner"></span> Building schedule…`;
-  outputEl.innerHTML = "";
-
-  const systemPrompt = `You are a spaced-repetition study planner for university exams. Your schedules are evidence-based and practical.
-
-Spaced repetition logic you MUST follow:
-1. Identify the hardest 2-3 subjects and schedule them heavily in Days 1–${Math.floor(days * 0.45)}.
-2. Introduce each subject in the first week so nothing is left until last minute.
-3. After the initial learning block for each subject, re-visit it at increasing intervals: 2 days, then 4 days, then 7 days.
-4. Reserve the final ${Math.min(5, Math.floor(days * 0.15))} days for mixed practice exams only.
-5. Include one rest/buffer day per week.
-
-Output ONLY a valid JSON object — no markdown, no preamble:
-
-{
-  "summary": "2-3 sentence overview of the strategy",
-  "hardest": ["subject1", "subject2"],
-  "weeks": [
-    {
-      "label": "Week 1 — Days 1–7",
-      "theme": "e.g. Foundation & Hardest Subjects",
-      "days": [
-        { "day": 1, "date": "Day 1", "subject": "Subject Name", "task": "Brief task description", "hours": ${hrs} },
-        ...7 entries
-      ]
-    },
-    ... one object per week
-  ]
-}`;
+  // ── Loading state ──
+  btn.disabled     = true;
+  btn.innerHTML    = `<span class="ai-spinner"></span> Thinking…`;
+  outputEl.className = "ai-response-box loading";
+  outputEl.innerHTML = `
+    <div class="ai-loading-inner">
+      <span class="ai-spinner large"></span>
+      <span>Your tutor is thinking…</span>
+    </div>`;
 
   try {
-    const raw = await callAnthropicAPI(
-      systemPrompt,
-      `Subjects: ${subjects}\nTotal days: ${days}\nStudy hours per day: ${hrs}`,
-      2000
-    );
+    const res = await fetch(WORKER_URL, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ question }),
+    });
 
-    const clean = raw.replace(/```json|```/g, "").trim();
-    const sched = JSON.parse(clean);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
 
+    const { answer } = await res.json();
+
+    outputEl.className = "ai-response-box visible";
     outputEl.innerHTML = `
-      <div class="sched-summary">
-        <div class="chip chip-green" style="margin-bottom:10px">Strategy Overview</div>
-        <p>${sched.summary}</p>
-        ${sched.hardest ? `<p style="margin-top:8px;font-size:12px;color:var(--red2)">
-          ⚡ Priority subjects: <strong>${sched.hardest.join(", ")}</strong>
-        </p>` : ""}
+      <div class="ai-response-header">
+        <span class="ai-response-icon">🎓</span>
+        <span class="ai-response-label">Kopaline AI Tutor</span>
+        <button class="ai-clear-btn" onclick="clearAITutor()" title="Clear">✕</button>
       </div>
-      ${sched.weeks.map(week => `
-        <div class="sched-week">
-          <div class="sched-week-header">
-            <span class="sched-week-label">${week.label}</span>
-            <span class="sched-week-theme">${week.theme}</span>
-          </div>
-          <div class="sched-days-grid">
-            ${week.days.map(d => `
-              <div class="sched-day">
-                <div class="sched-day-num">Day ${d.day}</div>
-                <div class="sched-day-subject">${d.subject}</div>
-                <div class="sched-day-task">${d.task}</div>
-                <div class="sched-day-hrs">${d.hours}h</div>
-              </div>`).join("")}
-          </div>
-        </div>`).join("")}`;
+      <div class="ai-response-body">${answer}</div>`;
 
-  } catch (e) {
-    showError("scheduleOutput", e.message);
+  } catch (err) {
+    outputEl.className = "ai-response-box error";
+    outputEl.innerHTML = `
+      <div class="ai-response-header">
+        <span class="ai-response-icon">⚠</span>
+        <span class="ai-response-label">Error</span>
+      </div>
+      <div class="ai-response-body">
+        <p>${err.message}</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--muted)">
+          Check your Worker URL is correct and the Worker is deployed.
+        </p>
+      </div>`;
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = "<span>Generate Schedule</span> →";
+    btn.disabled  = false;
+    btn.innerHTML = "Ask →";
   }
 }
+
+/** Clear the AI response panel and reset the input */
+function clearAITutor() {
+  document.getElementById("aiQuestion").value  = "";
+  document.getElementById("aiResponse").className = "ai-response-box";
+  document.getElementById("aiResponse").innerHTML  = "";
+}
+
+// Allow Enter key to submit the question
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("aiQuestion");
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        askAITutor();
+      }
+    });
+  }
+});
